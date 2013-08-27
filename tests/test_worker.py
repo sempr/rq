@@ -1,4 +1,5 @@
 import os
+from time import sleep
 from tests import RQTestCase, slow
 from tests.fixtures import say_hello, div_by_zero, do_nothing, create_file, \
         create_file_after_timeout
@@ -25,6 +26,14 @@ class TestWorker(RQTestCase):
         self.assertEquals(w.work(burst=True), True,
                 'Expected at least some work done.')
 
+    def test_worker_ttl(self):
+        """Worker ttl."""
+        w = Worker([])
+        w.register_birth() # ugly: our test should only call public APIs
+        [worker_key] = self.testconn.smembers(Worker.redis_workers_keys)
+        self.assertIsNotNone(self.testconn.ttl(worker_key))
+        w.register_death()
+
     def test_work_via_string_argument(self):
         """Worker processes work fed via string arguments."""
         q = Queue('foo')
@@ -48,7 +57,7 @@ class TestWorker(RQTestCase):
         job = Job.create(func=div_by_zero, args=(3,))
         job.save()
         data = self.testconn.hget(job.key, 'data')
-        invalid_data = data.replace('div_by_zero', 'nonexisting_job')
+        invalid_data = data.replace(b'div_by_zero', b'nonexisting_job')
         assert data != invalid_data
         self.testconn.hset(job.key, 'data', invalid_data)
 
@@ -185,13 +194,13 @@ class TestWorker(RQTestCase):
         job = q.enqueue(say_hello, args=('Frank',), result_ttl=10)
         w = Worker([q])
         w.work(burst=True)
-        self.assertNotEqual(self.testconn.ttl(job.key), 0)
+        self.assertNotEqual(self.testconn._ttl(job.key), 0)
 
         # Job with -1 result_ttl don't expire
         job = q.enqueue(say_hello, args=('Frank',), result_ttl=-1)
         w = Worker([q])
         w.work(burst=True)
-        self.assertEqual(self.testconn.ttl(job.key), None)
+        self.assertEqual(self.testconn._ttl(job.key), -1)
 
         # Job with result_ttl = 0 gets deleted immediately
         job = q.enqueue(say_hello, args=('Frank',), result_ttl=0)

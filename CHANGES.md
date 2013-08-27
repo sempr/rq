@@ -1,5 +1,84 @@
-### 0.3.3
+### 0.3.12
 (not released yet)
+
+- Ability to provide a custom job description (instead of using the default
+  function invocation hint).  Thanks, İbrahim.
+
+
+### 0.3.11
+(August 23th, 2013)
+
+- Some more fixes in command line scripts for Python 3
+
+
+### 0.3.10
+(August 20th, 2013)
+
+- Bug fix in setup.py
+
+
+### 0.3.9
+(August 20th, 2013)
+
+- Python 3 compatibility (Thanks, Alex!)
+
+- Minor bug fix where Sentry would break when func cannot be imported
+
+
+### 0.3.8
+(June 17th, 2013)
+
+- `rqworker` and `rqinfo` have a  `--url` argument to connect to a Redis url.
+
+- `rqworker` and `rqinfo` have a `--socket` option to connect to a Redis server
+  through a Unix socket.
+
+- `rqworker` reads `SENTRY_DSN` from the environment, unless specifically
+  provided on the command line.
+
+- `Queue` has a new API that supports paging `get_jobs(3, 7)`, which will
+  return at most 7 jobs, starting from the 3rd.
+
+
+### 0.3.7
+(February 26th, 2013)
+
+- Fixed bug where workers would not execute builtin functions properly.
+
+
+### 0.3.6
+(February 18th, 2013)
+
+- Worker registrations now expire.  This should prevent `rqinfo` from reporting
+  about ghosted workers.  (Thanks, @yaniv-aknin!)
+
+- `rqworker` will automatically clean up ghosted worker registrations from
+  pre-0.3.6 runs.
+
+- `rqworker` grew a `-q` flag, to be more silent (only warnings/errors are shown)
+
+
+### 0.3.5
+(February 6th, 2013)
+
+- `ended_at` is now recorded for normally finished jobs, too.  (Previously only
+  for failed jobs.)
+
+- Adds support for both `Redis` and `StrictRedis` connection types
+
+- Makes `StrictRedis` the default connection type if none is explicitly provided
+
+
+### 0.3.4
+(January 23rd, 2013)
+
+- Restore compatibility with Python 2.6.
+
+
+### 0.3.3
+(January 18th, 2013)
+
+- Fix bug where work was lost due to silently ignored unpickle errors.
 
 - Jobs can now access the current `Job` instance from within.  Relevant
   documentation [here](http://python-rq.org/docs/jobs/).
@@ -11,6 +90,8 @@
   documentation [here](http://python-rq.org/docs/jobs/).
 
 - `rqworker` now has an optional `--password` flag.
+
+- Remove `logbook` dependency (in favor of `logging`)
 
 
 ### 0.3.2
@@ -76,11 +157,11 @@
   invocations:
 
       ```python
-      from redis import Redis
+      from redis import StrictRedis
       from rq.decorators import job
 
       # Connect to Redis
-      redis = Redis()
+      redis = StrictRedis()
 
       @job('high', timeout=10, connection=redis)
       def some_work(x, y):

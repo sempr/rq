@@ -1,44 +1,20 @@
 #!/usr/bin/env python
+import os
 import sys
 import argparse
-import logbook
-from logbook import handlers
+import logging
+import logging.config
+
 from rq import Queue, Worker
+from rq.logutils import setup_loghandlers
 from redis.exceptions import ConnectionError
+from rq.contrib.legacy import cleanup_ghosts
 from rq.scripts import add_standard_arguments
 from rq.scripts import setup_redis
 from rq.scripts import read_config_file
 from rq.scripts import setup_default_arguments
 
-
-def format_colors(record, handler):
-    from rq.utils import make_colorizer
-    if record.level == logbook.WARNING:
-        colorize = make_colorizer('darkyellow')
-    elif record.level >= logbook.ERROR:
-        colorize = make_colorizer('darkred')
-    else:
-        colorize = lambda x: x
-    return '%s: %s' % (record.time.strftime('%H:%M:%S'), colorize(record.msg))
-
-
-def setup_loghandlers(args):
-    if args.verbose:
-        loglevel = logbook.DEBUG
-        formatter = None
-    else:
-        loglevel = logbook.INFO
-        formatter = format_colors
-
-    handlers.NullHandler(bubble=False).push_application()
-    handler = handlers.StreamHandler(sys.stdout, level=loglevel, bubble=False)
-    if formatter:
-        handler.formatter = formatter
-    handler.push_application()
-    handler = handlers.StderrHandler(level=logbook.WARNING, bubble=False)
-    if formatter:
-        handler.formatter = formatter
-    handler.push_application()
+logger = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -49,10 +25,26 @@ def parse_args():
     parser.add_argument('--name', '-n', default=None, help='Specify a different name')
     parser.add_argument('--path', '-P', default='.', help='Specify the import path.')
     parser.add_argument('--verbose', '-v', action='store_true', default=False, help='Show more output')
+    parser.add_argument('--quiet', '-q', action='store_true', default=False, help='Show less output')
     parser.add_argument('--sentry-dsn', action='store', default=None, metavar='URL', help='Report exceptions to this Sentry DSN')
+    parser.add_argument('--pid', action='store', default=None,
+                        help='Write the process ID number to a file at the specified path')
     parser.add_argument('queues', nargs='*', help='The queues to listen on (default: \'default\')')
 
     return parser.parse_args()
+
+
+def setup_loghandlers_from_args(args):
+    if args.verbose and args.quiet:
+        raise RuntimeError("Flags --verbose and --quiet are mutually exclusive.")
+
+    if args.verbose:
+        level = 'DEBUG'
+    elif args.quiet:
+        level = 'WARNING'
+    else:
+        level = 'INFO'
+    setup_loghandlers(level)
 
 
 def main():
@@ -67,14 +59,25 @@ def main():
 
     setup_default_arguments(args, settings)
 
-    # Other default arguments
-    if args.sentry_dsn is None:
-        args.sentry_dsn = settings.get('SENTRY_DSN', None)
+    # Worker specific default arguments
+    if not args.queues:
+        args.queues = settings.get('QUEUES', ['default'])
 
-    setup_loghandlers(args)
+    if args.sentry_dsn is None:
+        args.sentry_dsn = settings.get('SENTRY_DSN',
+                                       os.environ.get('SENTRY_DSN', None))
+
+    if args.pid:
+        with open(os.path.expanduser(args.pid), "w") as fp:
+            fp.write(str(os.getpid()))
+
+    setup_loghandlers_from_args(args)
     setup_redis(args)
+
+    cleanup_ghosts()
+
     try:
-        queues = map(Queue, args.queues)
+        queues = list(map(Queue, args.queues))
         w = Worker(queues, name=args.name)
 
         # Should we configure Sentry?

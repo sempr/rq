@@ -21,6 +21,7 @@ def pad(s, pad_to_length):
     """Pads the given string to the given length."""
     return ('%-' + '%ds' % pad_to_length) % (s,)
 
+
 def get_scale(x):
     """Finds the lowest scale where x <= scale."""
     scales = [20, 50, 100, 200, 400, 600, 800, 1000]
@@ -28,6 +29,7 @@ def get_scale(x):
         if x <= scale:
             return scale
     return x
+
 
 def state_symbol(state):
     symbols = {
@@ -42,7 +44,7 @@ def state_symbol(state):
 
 def show_queues(args):
     if len(args.queues):
-        qs = map(Queue, args.queues)
+        qs = list(map(Queue, args.queues))
     else:
         qs = Queue.all()
 
@@ -77,7 +79,7 @@ def show_queues(args):
 
 def show_workers(args):
     if len(args.queues):
-        qs = map(Queue, args.queues)
+        qs = list(map(Queue, args.queues))
 
         def any_matching_queue(worker):
             def queue_matches(q):
@@ -99,9 +101,9 @@ def show_workers(args):
         for w in ws:
             worker_queues = filter_queues(w.queue_names())
             if not args.raw:
-                print '%s %s: %s' % (w.name, state_symbol(w.state), ', '.join(worker_queues))
+                print('%s %s: %s' % (w.name, state_symbol(w.state), ', '.join(worker_queues)))
             else:
-                print 'worker %s %s %s' % (w.name, w.state, ','.join(worker_queues))
+                print('worker %s %s %s' % (w.name, w.state, ','.join(worker_queues)))
     else:
         # Create reverse lookup table
         queues = dict([(q, []) for q in qs])
@@ -117,21 +119,21 @@ def show_workers(args):
                 queues_str = ", ".join(sorted(map(lambda w: '%s (%s)' % (w.name, state_symbol(w.state)), queues[q])))
             else:
                 queues_str = '–'
-            print '%s %s' % (pad(q.name + ':', max_qname + 1), queues_str)
+            print('%s %s' % (pad(q.name + ':', max_qname + 1), queues_str))
 
     if not args.raw:
-        print '%d workers, %d queues' % (len(ws), len(qs))
+        print('%d workers, %d queues' % (len(ws), len(qs)))
 
 
 def show_both(args):
     show_queues(args)
     if not args.raw:
-        print ''
+        print('')
     show_workers(args)
     if not args.raw:
-        print ''
+        print('')
         import datetime
-        print 'Updated: %s' % datetime.datetime.now()
+        print('Updated: %s' % datetime.datetime.now())
 
 
 def parse_args():
@@ -184,6 +186,5 @@ def main():
         print(e)
         sys.exit(1)
     except KeyboardInterrupt:
-        print
+        print()
         sys.exit(0)
-

@@ -1,4 +1,7 @@
 *.pyc
-dump.rdb
-/*.egg-info
-.env
+*.egg-info
+
+/dump.rdb
+/.env
+/.tox
+/dist
